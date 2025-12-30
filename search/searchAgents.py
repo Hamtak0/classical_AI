@@ -4,7 +4,7 @@
 # educational purposes provided that (1) you do not distribute or publish
 # solutions, (2) you retain this notice, and (3) you provide clear
 # attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
+#
 # Attribution Information: The Pacman AI projects were developed at UC Berkeley.
 # The core projects and autograders were primarily created by John DeNero
 # (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
@@ -296,14 +296,28 @@ class CornersProblem(search.SearchProblem):
         space)
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # change state to remember corners
+        if self.startingPosition in self.corners:
+            return (self.startingPosition, tuple(sorted(self.startingPosition)))
+        return (self.startingPosition, ())
 
     def isGoalState(self, state: Any):
         """
         Returns whether this search state is a goal state of the problem.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        # checking goal if the agent visited all the corners
+        isGoal = len(self.corners) == len(state[1])
+
+        # For display purposes only
+        # if isGoal and self.visualize:
+        #     self._visitedlist.append(state)
+        #     import __main__
+        #     if '_display' in dir(__main__):
+        #         if 'drawExpandedCells' in dir(__main__._display): #@UndefinedVariable
+        #             __main__._display.drawExpandedCells(self._visitedlist) #@UndefinedVariable
+
+        return isGoal
 
     def getSuccessors(self, state: Any):
         """
@@ -317,6 +331,7 @@ class CornersProblem(search.SearchProblem):
         """
 
         successors = []
+        currentPosition, visitedcorners = state
         for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             # Add a successor state to the successor list if the action is legal
             # Here's a code snippet for figuring out whether a new position hits a wall:
@@ -326,6 +341,22 @@ class CornersProblem(search.SearchProblem):
             #   hitsWall = self.walls[nextx][nexty]
 
             "*** YOUR CODE HERE ***"
+            x, y = currentPosition
+            dx, dy = Actions.directionToVector(action)
+            nextx, nexty = int(x + dx), int(y + dy)
+            hitsWall = self.walls[nextx][nexty]
+
+            if not hitsWall:
+                nextPosition = (nextx, nexty)
+                visitedset = set(visitedcorners)
+
+                if nextPosition in self.corners:
+                    visitedset.add(nextPosition)
+
+                # helps from AI to hash the state which list cannot be hashed so we use tuple instead
+                newcorners = tuple(sorted(visitedset))
+
+                successors.append(((nextPosition, newcorners), action, 1))
 
         self._expanded += 1 # DO NOT CHANGE
         return successors
@@ -343,6 +374,11 @@ class CornersProblem(search.SearchProblem):
             if self.walls[x][y]: return 999999
         return len(actions)
 
+def distManhattan(Pos1: tuple[int, int], Pos2: tuple[int, int]) -> float:
+    return (abs(Pos1[0]-Pos2[0])+abs(Pos1[1]-Pos2[1])) # prefers more than euclidean because pacman behaves like manhattan
+
+def distEuclidean(Pos1: tuple[int, int], Pos2: tuple[int, int]) -> float:
+    return ((Pos1[0]-Pos2[0])**2 + (Pos1[1]-Pos2[1])**2)**0.5
 
 def cornersHeuristic(state: Any, problem: CornersProblem):
     """
@@ -361,7 +397,31 @@ def cornersHeuristic(state: Any, problem: CornersProblem):
     walls = problem.walls # These are the walls of the maze, as a Grid (game.py)
 
     "*** YOUR CODE HERE ***"
-    return 0 # Default to trivial solution
+    currentPosition, visitedCorners = state
+
+    nvcorners = [] # not visited corners
+    for corner in corners:
+        if corner not in visitedCorners:
+            nvcorners.append(corner)
+
+    # if reach goal state
+    if nvcorners == []:
+        return 0
+
+    from itertools import permutations
+    # https://www.geeksforgeeks.org/python/permutation-and-combination-in-python/
+    mins: int = 999999
+    for permutation in permutations(nvcorners):
+        allCost = 0
+        tempPosition = currentPosition
+
+        for eachCorner in permutation:
+            allCost += distManhattan(eachCorner, tempPosition)
+            tempPosition = eachCorner
+        mins = min(mins, allCost)
+
+    return mins
+    # return 0 # Default to trivial solution
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
@@ -455,6 +515,7 @@ def foodHeuristic(state: Tuple[Tuple, List[List]], problem: FoodSearchProblem):
     """
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
+
     return 0
 
 class ClosestDotSearchAgent(SearchAgent):
